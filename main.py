@@ -1,14 +1,30 @@
-from typing import Optional
+import json
+from pathlib import Path
 
+import uvicorn
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+from re_edge_gpt import Chatbot, ConversationStyle
 
 app = FastAPI()
+cookies = json.loads(open(str(Path(str(Path.cwd()) + "/bing-cookies.txt")), encoding="utf-8").read())
 
 
-@app.get("/")
-async def root():
-    return {"message": "Hello World"}
+class Payload(BaseModel):
+    text: str
 
-@app.get("/items/{item_id}")
-def read_item(item_id: int, q: Optional[str] = None):
-    return {"item_id": item_id, "q": q}
+
+@app.post('/get-response')
+async def get_response(payload: Payload):
+    question = payload.text
+    bot = await Chatbot.create(cookies=cookies)
+    response = await bot.ask(prompt=question, conversation_style=ConversationStyle.creative,
+                             simplify_response=True)
+    answer = response['text']
+    res = {"response": answer}
+    return JSONResponse(res, 200)
+
+
+if __name__ == "__main__":
+    uvicorn.run(app)
